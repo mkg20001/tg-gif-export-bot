@@ -16,6 +16,8 @@ const getTMP = (postname) => path.join(TMP, crypto.randomBytes(6).toString('hex'
 const cp = require('child_process')
 const bl = require('bl')
 const URI = require('urijs')
+const hapi = require('@hapi/hapi')
+const inert = require('@hapi/inert')
 
 const TMP = path.join(os.tmpdir(), 'gif-export-bot')
 
@@ -31,6 +33,8 @@ Sentry.init({dsn: process.env.SENTRY_DSN})
 
 const pino = require('pino')
 const log = pino({name: 'tg-gif-export-bot'})
+
+const mainURL = process.argv[3]
 
 clean()
 setInterval(clean, 3600 * 1000) // fixes disk filling with failed dls
@@ -184,11 +188,55 @@ async function doConvert (input, reply, opt) {
 
   await exec('ffmpeg', ['-i', input, output])
 
-  await reply.file(output, opt)
+  let {chat: {id: cid}, message_id: msgId, document: {file_id: id, file_name: fName}} = await reply.file(output, opt)
+  if (fName.endsWith('_')) { fName = fName.replace(/_$/, '') }
+
+  bot.sendMessage(cid, `Here's the link to download the GIF: ${mainURL}/${id}/${fName}?dl=1
+
+And here's the preview: ${mainURL}/${id}/${fName}`, {webPreview: false, replyToMessage: msgId})
 
   // clean disk
   rimraf(input)
   rimraf(output)
 }
 
-bot.start()
+const main = async () => {
+  const server = hapi.server({
+    port: 12486,
+    host: 'localhost'
+  })
+
+  await server.register(inert)
+
+  await server.route({
+    path: '/',
+    method: 'GET',
+    handler: async (request, h) => {
+      return h.redirect('https://t.me/gif_export_bot')
+    }
+  })
+
+  await server.route({
+    path: '/{id}/{real}',
+    method: 'GET',
+    config: {
+      handler: async (request, h) => {
+        const file = await bot.getFile(request.params.id)
+        log.info(file, 'Downloading %s...', file.file_id)
+        const loc = await webFetchToTmp(file.fileLink, path.basename(file.file_path || ''))
+
+        if (request.query.dl) {
+          return h.file(loc, {confine: false}).header('content-description', 'File Transfer').header('type', 'application/octet-stream').header('content-disposition', 'attachment; filename=' + JSON.stringify(request.params.real)).header('content-transfer-encoding', 'binary')
+        } else {
+          return h.file(loc, {confine: false}).type('image/gif')
+        }
+      }
+    }
+  })
+
+  await server.start()
+
+  bot.start()
+}
+
+main().then(() => {}, console.error)
