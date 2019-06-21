@@ -18,6 +18,7 @@ const bl = require('bl')
 const URI = require('urijs')
 const hapi = require('@hapi/hapi')
 const inert = require('@hapi/inert')
+const boom = require('@hapi/boom')
 
 const TMP = path.join(os.tmpdir(), 'gif-export-bot')
 
@@ -190,10 +191,13 @@ async function doConvert (input, reply, opt) {
 
   let {chat: {id: cid}, message_id: msgId, document: {file_id: id, file_name: fName}} = await reply.file(output, opt)
   if (fName.endsWith('_')) { fName = fName.replace(/_$/, '') }
+  fName = encodeURI(fName)
 
   bot.sendMessage(cid, `Here's the link to download the GIF: ${mainURL}/${id}/${fName}?dl=1
 
-And here's the preview: ${mainURL}/${id}/${fName}`, {webPreview: false, replyToMessage: msgId})
+And here's the preview: ${mainURL}/${id}/${fName}
+
+Donate to keep this bot up! https://paypal.me/mkg20001`, {webPreview: false, replyToMessage: msgId})
 
   // clean disk
   rimraf(input)
@@ -221,7 +225,16 @@ const main = async () => {
     method: 'GET',
     config: {
       handler: async (request, h) => {
-        const file = await bot.getFile(request.params.id)
+        let file
+        try {
+          file = await bot.getFile(request.params.id)
+        } catch (e) {
+          if (e.error_code === 400) {
+            throw boom.notFound()
+          } else {
+            throw e
+          }
+        }
         log.info(file, 'Downloading %s...', file.file_id)
         const loc = await webFetchToTmp(file.fileLink, path.basename(file.file_path || ''))
 
