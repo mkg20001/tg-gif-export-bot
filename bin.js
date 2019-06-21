@@ -137,7 +137,7 @@ bot.on = (ev, fnc, ...a) => {
   }, ...a)
 }
 
-bot.on(['/start', '/hello'], (msg) => msg.reply.text('This bot turns Telegram GIFs into real .gif\'s!\nJust send me your GIFs and I\'ll convert them! (I also take links to .mp4\'s)\nMade by: mkg20001 - Code: https://github.com/mkg20001/tg-gif-export-bot', {webPreview: false}))
+bot.on(['/start', '/hello'], (msg) => msg.reply.text('This bot turns Telegram GIFs into real .gifs!\nJust send me your GIFs and I\'ll convert them! (I also take links to .mp4s)\nMade by: mkg20001 - Code: https://github.com/mkg20001/tg-gif-export-bot - Donations: https://paypal.me/mkg20001', {webPreview: false}))
 
 bot.on('document', async (msg) => {
   const doc = msg.document
