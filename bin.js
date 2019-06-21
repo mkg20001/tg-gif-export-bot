@@ -125,8 +125,9 @@ const webFetchToTmp = async (url, postname) => {
 }
 
 const origOn = bot.on.bind(bot)
+let events = {}
 bot.on = (ev, fnc, ...a) => {
-  origOn(ev, async (msg, ...a) => {
+  let wrapped = async (msg, ...a) => {
     try {
       let res = await fnc(msg, ...a)
       return res
@@ -139,10 +140,27 @@ bot.on = (ev, fnc, ...a) => {
         // ignore
       }
     }
-  }, ...a)
+  }
+  events[ev] = wrapped
+  origOn(ev, wrapped, ...a)
 }
 
 bot.on(['/start', '/hello'], (msg) => msg.reply.text('This bot turns Telegram GIFs into real .gifs!\nJust send me your GIFs and I\'ll convert them! (I also take links to .mp4s)\nMade by: mkg20001 - Code: https://github.com/mkg20001/tg-gif-export-bot - Donations: https://paypal.me/mkg20001', {webPreview: false}))
+
+bot.on('forward', (msg) => {
+  switch (true) {
+    case Boolean(msg.document):
+      events.document(msg)
+      break
+    case Boolean(msg.text):
+      events.text(msg)
+      break
+    case Boolean(msg.photo):
+      events.photo(msg)
+      break
+    default: {}
+  }
+})
 
 bot.on('document', async (msg) => {
   const doc = msg.document
