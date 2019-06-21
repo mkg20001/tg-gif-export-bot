@@ -1,0 +1,39 @@
+{
+  "name": "tg-gif-export-bot",
+  "version": "0.0.1",
+  "description": "Exports Telegram GIFs into real .gifs",
+  "bin": {
+    "tg-gif-export-bot": "bin.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "telegram",
+    "gif",
+    "export",
+    "bot"
+  ],
+  "author": "Maciej Krüger <mkg20001@gmail.com>",
+  "license": "MPL-2.0",
+  "dependencies": {
+    "@sentry/node": "^5.4.2",
+    "bl": "^3.0.0",
+    "mkdirp": "^0.5.1",
+    "node-fetch": "^2.6.0",
+    "pino": "^5.12.6",
+    "rimraf": "^2.6.3",
+    "telebot": "^1.2.6",
+    "urijs": "^1.19.1"
+  },
+  "main": "bin.js",
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mkg20001/tg-gif-export-bot.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mkg20001/tg-gif-export-bot/issues"
+  },
+  "homepage": "https://github.com/mkg20001/tg-gif-export-bot#readme"
+}
