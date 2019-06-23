@@ -17,7 +17,6 @@ const cp = require('child_process')
 const bl = require('bl')
 const URI = require('urijs')
 const hapi = require('@hapi/hapi')
-const inert = require('@hapi/inert')
 const boom = require('@hapi/boom')
 
 const TMP = path.join(os.tmpdir(), 'gif-export-bot')
@@ -228,7 +227,23 @@ const main = async () => {
     host: 'localhost'
   })
 
-  await server.register(inert)
+  await server.register({
+    plugin: require('hapi-pino'),
+    options: {name: 'tg-gif-export-bot'}
+  })
+
+  if (process.env.SENTRY_DSN) {
+    await server.register({
+      plugin: require('hapi-sentry'),
+      options: {client: {
+        dsn: process.env.SENTRY_DSN
+      }}
+    })
+  }
+
+  await server.register({
+    plugin: require('@hapi/inert')
+  })
 
   await server.route({
     path: '/',
