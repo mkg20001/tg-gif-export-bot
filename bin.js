@@ -144,7 +144,14 @@ bot.on = (ev, fnc, ...a) => {
   origOn(ev, wrapped, ...a)
 }
 
-bot.on(['/start', '/hello'], (msg) => msg.reply.text('This bot turns Telegram GIFs into real .gifs!\nJust send me your GIFs and I\'ll convert them! (I also take links to .mp4s)\nMade by: mkg20001 - Code: https://github.com/mkg20001/tg-gif-export-bot - Donations: https://paypal.me/mkg20001', {webPreview: false}))
+const HELLO = `*This bot turns Telegram GIFs into real .gifs!*
+
+Just send me your GIFs and I'll convert them! (I also take links to .mp4s)
+ \\* Made by: [mkg20001](https://mkg20001.io)
+ \\* Report Bugs: https://github.com/mkg20001/tg-gif-export-bot/issues
+ \\* Donate: https://paypal.me/mkg20001`
+
+bot.on(['/start', '/hello'], (msg) => msg.reply.text(HELLO, {webPreview: false, parseMode: 'markdown'}))
 
 bot.on('forward', (msg) => {
   switch (true) {
