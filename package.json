@@ -18,7 +18,7 @@
   "license": "MPL-2.0",
   "dependencies": {
     "@hapi/hapi": "^18.3.1",
-    "@hapi/inert": "^5.2.0",
+    "@hapi/inert": "^5.2.1",
     "@sentry/node": "^5.4.3",
     "bl": "^3.0.0",
     "hapi-pino": "^6.0.1",

@@ -42,6 +42,7 @@ setInterval(clean, 3600 * 1000) // fixes disk filling with failed dls
 const MAX_SIZE = 25 * 1024 * 1024
 
 const nameToGif = (name) => {
+  if (!name) { name = 'animation.gif' }
   name = path.basename(name)
   const {ext} = path.parse(name)
   return name.replace(ext, name.indexOf('.gif') !== -1 ? '' : '.gif') + '_'
@@ -126,6 +127,7 @@ const webFetchToTmp = async (url, postname) => {
 const origOn = bot.on.bind(bot)
 let events = {}
 bot.on = (ev, fnc, ...a) => {
+  if (process.env.DEBUG && process.env.DEBUG.indexOf('event') !== 1) { console.log(ev, fnc, ...a) }
   let wrapped = async (msg, ...a) => {
     try {
       let res = await fnc(msg, ...a)
