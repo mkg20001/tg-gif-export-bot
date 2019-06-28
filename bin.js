@@ -21,6 +21,33 @@ const boom = require('@hapi/boom')
 
 const TMP = path.join(os.tmpdir(), 'gif-export-bot')
 
+const queues = {}
+const wait = () => new Promise((resolve, reject) => setTimeout(resolve, time))
+async function doQueue(name) {
+  if (queues[name].working) { return }
+  let item = queues[name].todo.shift()
+  if (item) {
+    try {
+      let res = await item.fnc()
+      item.resolve(res)
+    } catch (err) {
+      item.reject(err)
+    }
+
+    await wait(cool)
+  }
+  queues[name].working = false
+}
+function queue(name, fnc, cool) {
+  if (!queues[name]) { queues[name] = {working: false, todo: []} }
+  return new Promise((resolve, reject) => {
+    queues[name].todo.push({resolve, reject, fnc, cool})
+    if (!queues[name].working) { doQueue(name) }
+  })
+}
+
+
+
 const clean = () => {
   log.info('Taking out the trash... (Removing temporary files...)')
   rimraf(TMP)
@@ -217,7 +244,7 @@ async function doConvert (input, reply, opt) {
 
   log.info({input, output}, 'Uploading...')
 
-  let {chat: {id: cid}, message_id: msgId, document: {file_id: id, file_name: fName}} = await reply.file(output, opt)
+  let {chat: {id: cid}, message_id: msgId, document: {file_id: id, file_name: fName}} = await queue(upload, async () => reply.file(output, opt), 2500)
   if (fName.endsWith('_')) { fName = fName.replace(/_$/, '') }
   fName = encodeURI(fName)
 
