@@ -154,9 +154,9 @@ const webFetchToTmp = async (url, postname) => {
 const origOn = bot.on.bind(bot)
 let events = {}
 bot.on = (ev, fnc, ...a) => {
-  if (process.env.DEBUG && process.env.DEBUG.indexOf('event') !== 1) { console.log(ev, fnc, ...a) }
   let wrapped = async (msg, ...a) => {
     try {
+      if (process.env.DEBUG && process.env.DEBUG.indexOf('event') !== 1) { console.log(ev, JSON.stringify(a)) }
       let res = await fnc(msg, ...a)
       return res
     } catch (e) {
@@ -205,7 +205,7 @@ bot.on('document', async (msg) => {
 
   const location = await tgFetch(doc)
 
-  await doConvert(location, msg.reply, {fileName: nameToGif(doc.file_name), asReply: true})
+  await doConvert(location, (output) => msg.reply.file(output, {fileName: nameToGif(doc.file_name), asReply: true}))
 })
 
 bot.on('text', async (msg) => {
@@ -226,7 +226,7 @@ bot.on('text', async (msg) => {
   await Promise.all(urls.map(async (url) => {
     try {
       const loc = await webFetchToTmp(url)
-      await doConvert(loc, msg.reply, {fileName: nameToGif(url), asReply: true})
+      await doConvert(loc, () => msg.reply.file(output, {fileName: nameToGif(url), asReply: true}))
     } catch (e) {
       msg.reply.text('ERROR: Couldn\'t convert ' + url, {webPreview: false, asReply: true})
       log.error(e)
@@ -235,7 +235,7 @@ bot.on('text', async (msg) => {
   }))
 })
 
-async function doConvert (input, reply, opt) {
+async function doConvert (input, reply) {
   let output = getTMP('_converted.gif')
 
   log.info({input, output}, 'Converting...')
@@ -244,7 +244,7 @@ async function doConvert (input, reply, opt) {
 
   log.info({input, output}, 'Uploading...')
 
-  let {chat: {id: cid}, message_id: msgId, document: {file_id: id, file_name: fName}} = await queue(upload, async () => reply.file(output, opt), 2500)
+  let {chat: {id: cid}, message_id: msgId, document: {file_id: id, file_name: fName}} = await queue('upload', () => reply(output), 2500)
   if (fName.endsWith('_')) { fName = fName.replace(/_$/, '') }
   fName = encodeURI(fName)
 
