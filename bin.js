@@ -215,6 +215,8 @@ async function doConvert (input, reply, opt) {
 
   await exec('ffmpeg', ['-i', input, output])
 
+  log.info({input, output}, 'Uploading...')
+
   let {chat: {id: cid}, message_id: msgId, document: {file_id: id, file_name: fName}} = await reply.file(output, opt)
   if (fName.endsWith('_')) { fName = fName.replace(/_$/, '') }
   fName = encodeURI(fName)
