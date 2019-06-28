@@ -225,6 +225,8 @@ And here's the preview: ${mainURL}/${id}/${fName}
 
 Donate to keep this bot up! https://paypal.me/mkg20001`, {webPreview: false, replyToMessage: msgId})
 
+  log.info({input, output, cid}, 'Replied!')
+
   // clean disk
   rimraf(input)
   rimraf(output)
