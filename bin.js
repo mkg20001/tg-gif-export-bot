@@ -244,7 +244,7 @@ async function doConvert (input, reply) {
 
   log.info({input, output}, 'Uploading...')
 
-  let {chat: {id: cid}, message_id: msgId, document: {file_id: id, file_name: fName}} = await queue('upload', () => reply(output), 2500)
+  let {chat: {id: cid}, message_id: msgId, document: {file_id: id, file_name: fName}} = await reply(output) // await queue('upload', () => reply(output), 2500)
   if (fName.endsWith('_')) { fName = fName.replace(/_$/, '') }
   fName = encodeURI(fName)
 
@@ -272,14 +272,14 @@ const main = async () => {
     options: {name: 'tg-gif-export-bot'}
   })
 
-  if (process.env.SENTRY_DSN) {
+  /* if (process.env.SENTRY_DSN) { // TODO: this seems to cause heap out of memory
     await server.register({
       plugin: require('hapi-sentry'),
       options: {client: {
         dsn: process.env.SENTRY_DSN
       }}
     })
-  }
+  } */
 
   await server.register({
     plugin: require('@hapi/inert')
