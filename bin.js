@@ -2,249 +2,39 @@
 
 'use strict'
 
-const TeleBot = require('telebot')
-const bot = new TeleBot(process.argv[2])
-const ERROR_REPLY = 'Boom!\nYou just made this bot go kaboom!\nHave a 🍪️!'
-const fetch = require('node-fetch')
-const mkdir = require('mkdirp').sync
-const rimraf = require('rimraf').sync
-const os = require('os')
-const path = require('path')
-const fs = require('fs')
-const crypto = require('crypto')
-const getTMP = (postname) => path.join(TMP, crypto.randomBytes(6).toString('hex') + (postname || ''))
-const cp = require('child_process')
-const bl = require('bl')
+const pino = require('pino')
+const log = pino({name: 'tg-sticker-convert-bot'})
+
 const URI = require('urijs')
+const path = require('path')
+const mainURL = process.argv[3]
+
 const hapi = require('@hapi/hapi')
 const boom = require('@hapi/boom')
 
-const TMP = path.join(os.tmpdir(), 'gif-export-bot')
-
-const queues = {}
-const wait = () => new Promise((resolve, reject) => setTimeout(resolve, time))
-async function doQueue(name) {
-  if (queues[name].working) { return }
-  let item = queues[name].todo.shift()
-  if (item) {
-    try {
-      let res = await item.fnc()
-      item.resolve(res)
-    } catch (err) {
-      item.reject(err)
-    }
-
-    await wait(cool)
-  }
-  queues[name].working = false
-}
-function queue(name, fnc, cool) {
-  if (!queues[name]) { queues[name] = {working: false, todo: []} }
-  return new Promise((resolve, reject) => {
-    queues[name].todo.push({resolve, reject, fnc, cool})
-    if (!queues[name].working) { doQueue(name) }
-  })
-}
-
-
-
-const clean = () => {
-  log.info('Taking out the trash... (Removing temporary files...)')
-  rimraf(TMP)
-  mkdir(TMP)
-  log.info('Done!')
-}
-
-const Sentry = require('@sentry/node')
-Sentry.init({dsn: process.env.SENTRY_DSN})
-
-const pino = require('pino')
-const log = pino({name: 'tg-gif-export-bot'})
-
-const mainURL = process.argv[3]
-
-clean()
-setInterval(clean, 3600 * 1000) // fixes disk filling with failed dls
-
-const MAX_SIZE = 25 * 1024 * 1024
-
-const nameToGif = (name) => {
-  if (!name) { name = 'animation.gif' }
-  name = path.basename(name)
-  const {ext} = path.parse(name)
-  return name.replace(ext, name.indexOf('.gif') !== -1 ? '' : '.gif') + '_'
-}
-
-const exec = (cmd, args) => new Promise((resolve, reject) => {
-  const p = cp.spawn(cmd, args, {stdio: 'pipe'})
-  p.stdout = p.stdout.pipe(bl())
-  p.stderr = p.stderr.pipe(bl())
-
-  p.once('exit', (code, sig) => {
-    if (code || sig) {
-      const e = new Error('Code/Sig ' + (code || sig))
-      e.stdout = String(p.stdout)
-      e.stderr = String(p.stderr)
-      return reject(e)
-    }
-
-    return resolve(p)
-  })
-
-  p.once('error', reject)
-})
-
-const tgFetch = async (file, msg) => {
-  if (!file) {
-    return msg.reply.text(ERROR_REPLY)
-  }
-
-  if (file.file_size > MAX_SIZE) {
-    return msg.reply.text('Sorry, but we only support files up to 25MB!')
-  }
-
-  log.info(file, 'Downloading %s...', file.file_id)
-
-  const f2 = await bot.getFile(file.file_id)
-
-  if (f2.file_size > MAX_SIZE) { // dbl check
-    return msg.reply.text('Sorry, but we only support files up to 25MB!')
-  }
-
-  return webFetchToTmp(f2.fileLink, path.basename(f2.file_path || ''))
-}
-
-const webFetchToTmp = async (url, postname) => {
-  const res = await fetch(url)
-
-  let tmp = getTMP(postname)
-
-  log.info({tmp, url}, 'Downloading %s to %s...', url, tmp)
-
-  /* if (res.headers.get('content-type') && !res.headers.get('content-type').startsWith('image/')) {
-    throw new Error('Not an image')
-  } */
-
-  await new Promise((resolve, reject) => {
-    const dest = fs.createWriteStream(tmp)
-    res.body.pipe(dest)
-    let dlSize = 0
-    res.body.on('data', data => {
-      dlSize += data.length
-      if (dlSize > MAX_SIZE) { // someone is downloading an ISO or stuff
-        dest.close()
-        res.body.close()
-        reject(new Error('Too big!'))
-      }
-    })
-    res.body.on('error', err => {
-      reject(err)
-    })
-    dest.on('finish', () => {
-      resolve()
-    })
-    dest.on('error', err => {
-      reject(err)
-    })
-  })
-
-  return tmp
-}
-
-const origOn = bot.on.bind(bot)
-let events = {}
-bot.on = (ev, fnc, ...a) => {
-  let wrapped = async (msg, ...a) => {
-    try {
-      if (process.env.DEBUG && process.env.DEBUG.indexOf('event') !== 1) { console.log(ev, JSON.stringify(a)) }
-      let res = await fnc(msg, ...a)
-      return res
-    } catch (e) {
-      log.error(e)
-      Sentry.captureException(e)
-      try {
-        msg.reply.text(ERROR_REPLY)
-      } catch (e) {
-        // ignore
-      }
-    }
-  }
-  events[ev] = wrapped
-  origOn(ev, wrapped, ...a)
-}
-
 const HELLO = `*This bot turns Telegram GIFs into real .gifs!*
 
-Just send me your GIFs and I'll convert them! (I also take links to .mp4s)
- \\* Made by: [mkg20001](https://mkg20001.io)
- \\* Report Bugs: https://github.com/mkg20001/tg-gif-export-bot/issues
- \\* Donate: https://paypal.me/mkg20001`
+Just send me your GIFs and I'll convert them!
+ \\* Links to .mp4s get downloaded and converted as well
 
-bot.on(['/start', '/hello'], (msg) => msg.reply.text(HELLO, {webPreview: false, parseMode: 'markdown'}))
+Oh, and could you please...
+ \\* Report bugs when you spot them: https://github.com/mkg20001/tg-sticker-convert-bot/issues
+ \\* Donate: https://paypal.me/mkg20001
+`
 
-bot.on('forward', (msg) => {
-  switch (true) {
-    case Boolean(msg.document):
-      events.document(msg)
-      break
-    case Boolean(msg.text):
-      events.text(msg)
-      break
-    case Boolean(msg.photo):
-      events.photo(msg)
-      break
-    default: {}
-  }
+const core = require('teleutils')('gif-export-bot', {
+  token: process.argv[2],
+  helloMessage: HELLO
 })
 
-bot.on('document', async (msg) => {
-  const doc = msg.document
-  if (!doc.mime_type.startsWith('video/')) {
-    return msg.reply.text('That doesn\'t look like a video')
-  }
+async function doConvert (input, reply, opt) {
+  let output = core.tmp('_converted.gif')
 
-  const location = await tgFetch(doc)
+  log.info({input: input.path, output: output.path}, 'Converting...')
 
-  await doConvert(location, (output) => msg.reply.file(output, {fileName: nameToGif(doc.file_name), asReply: true}))
-})
+  await core.exec('ffmpeg', ['-i', input.path, output.path])
 
-bot.on('text', async (msg) => {
-  if (msg.text.trim().startsWith('/')) { // ignore cmds
-    return
-  }
-
-  let urls = []
-  URI.withinString(msg.text, (url) => urls.push(url))
-  if (!urls.length) {
-    return msg.reply.text('Didn\'t find any URLs in your message', {asReply: true})
-  }
-
-  if (urls.length > 20) {
-    return msg.reply.text('Too many URLs!')
-  }
-
-  await Promise.all(urls.map(async (url) => {
-    try {
-      const loc = await webFetchToTmp(url)
-      await doConvert(loc, () => msg.reply.file(output, {fileName: nameToGif(url), asReply: true}))
-    } catch (e) {
-      msg.reply.text('ERROR: Couldn\'t convert ' + url, {webPreview: false, asReply: true})
-      log.error(e)
-      Sentry.captureException(e)
-    }
-  }))
-})
-
-async function doConvert (input, reply) {
-  let output = getTMP('_converted.gif')
-
-  log.info({input, output}, 'Converting...')
-
-  await exec('ffmpeg', ['-i', input, output])
-
-  log.info({input, output}, 'Uploading...')
-
-  let {chat: {id: cid}, message_id: msgId, document: {file_id: id, file_name: fName}} = await reply(output) // await queue('upload', () => reply(output), 2500)
+  let {chat: {id: cid}, message_id: msgId, document: {file_id: id, file_name: fName}} = await reply.file(output.path, opt)
   if (fName.endsWith('_')) { fName = fName.replace(/_$/, '') }
   fName = encodeURI(fName)
 
@@ -254,12 +44,81 @@ And here's the preview: ${mainURL}/${id}/${fName}
 
 Donate to keep this bot up! https://paypal.me/mkg20001`, {webPreview: false, replyToMessage: msgId})
 
-  log.info({input, output, cid}, 'Replied!')
-
   // clean disk
-  rimraf(input)
-  rimraf(output)
+  input.cleanup()
+  output.cleanup()
 }
+const nameToGif = (name) => {
+  name = path.basename(name)
+  const parsed = path.parse(name)
+  parsed.ext = '.gif_'
+  delete parsed.base
+  return path.format(parsed)
+}
+
+const beConfused = async (msg) => {
+  return msg.reply.file(path.join(__dirname, 'confused.webp'), {fileName: 'confused.webp', asReply: true})
+}
+const handleDocument = async (msg) => {
+  const doc = msg.document
+  if (!doc.mime_type.startsWith('video/')) {
+    return msg.reply.text('That doesn\'t look like a video')
+  }
+
+  const location = await core.fetch.tg(doc)
+
+  await doConvert(location, msg.reply, {fileName: nameToGif(doc.file_name), asReply: true})
+}
+const handleText = async (msg) => {
+  if (msg.text.trim().startsWith('/')) { // ignore cmds
+    return
+  }
+
+  let urls = []
+  URI.withinString(msg.text, (url) => urls.push(url))
+  if (!urls.length) {
+    // TODO: friendly error
+    return msg.reply.text('Didn\'t find any URLs in your message', {asReply: true})
+  }
+
+  if (urls.length > 20) {
+    // TODO: friendly error
+    return msg.reply.text('Too many URLs!')
+  }
+
+  await Promise.all(urls.map(async (url) => {
+    try {
+      const loc = await core.fetch.web(url)
+      await doConvert(loc, msg.reply, {fileName: nameToGif(url), asReply: true})
+    } catch (e) {
+      // TODO: rewrite
+      msg.reply.text('ERROR: Couldn\'t convert ' + url, {webPreview: false, asReply: true})
+      log.error(e)
+      core.error.captureException(e)
+    }
+  }))
+}
+
+const {bot} = core
+
+bot.on('sticker', beConfused)
+bot.on('document', handleDocument)
+bot.on('photo', beConfused)
+bot.on('text', handleText)
+bot.on('forward', (msg) => {
+  switch (true) {
+    case Boolean(msg.document):
+      handleDocument(msg)
+      break
+    case Boolean(msg.text):
+      handleText(msg)
+      break
+    case Boolean(msg.photo):
+      beConfused(msg)
+      break
+    default: {} // eslint-disable-line no-empty
+  }
+})
 
 const main = async () => {
   const server = hapi.server({
@@ -309,20 +168,22 @@ const main = async () => {
           }
         }
         log.info(file, 'Downloading %s...', file.file_id)
-        const loc = await webFetchToTmp(file.fileLink, path.basename(file.file_path || ''))
+        const loc = await core.fetch.web(file.fileLink, path.basename(file.file_path || ''))
 
         if (request.query.dl) {
-          return h.file(loc, {confine: false}).header('content-description', 'File Transfer').header('type', 'application/octet-stream').header('content-disposition', 'attachment; filename=' + JSON.stringify(request.params.real)).header('content-transfer-encoding', 'binary')
+          return h.file(loc.path, {confine: false}).header('content-description', 'File Transfer').header('type', 'application/octet-stream').header('content-disposition', 'attachment; filename=' + JSON.stringify(request.params.real)).header('content-transfer-encoding', 'binary')
         } else {
-          return h.file(loc, {confine: false}).type('image/gif')
+          return h.file(loc.path, {confine: false}).type('image/gif')
         }
+
+        // TODO: call loc.cleanup() afterwards
       }
     }
   })
 
   await server.start()
 
-  bot.start()
+  core.start()
 }
 
 main().then(() => {}, console.error)
