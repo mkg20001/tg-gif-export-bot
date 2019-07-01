@@ -3,7 +3,7 @@
 'use strict'
 
 const pino = require('pino')
-const log = pino({name: 'tg-sticker-convert-bot'})
+const log = pino({name: 'tg-gif-export-bot'})
 
 const URI = require('urijs')
 const path = require('path')
@@ -67,7 +67,7 @@ const handleDocument = async (msg) => {
 
   const location = await core.fetch.tg(doc)
 
-  await doConvert(location, msg.reply, {fileName: nameToGif(doc.file_name), asReply: true})
+  await doConvert(location, msg.reply, {fileName: nameToGif(doc.file_name || 'animation.gif'), asReply: true})
 }
 const handleText = async (msg) => {
   if (msg.text.trim().startsWith('/')) { // ignore cmds
@@ -131,14 +131,12 @@ const main = async () => {
     options: {name: 'tg-gif-export-bot'}
   })
 
-  /* if (process.env.SENTRY_DSN) { // TODO: this seems to cause heap out of memory
+  if (process.env.SENTRY_DSN) { // TODO: this seems to cause heap out of memory
     await server.register({
       plugin: require('hapi-sentry'),
-      options: {client: {
-        dsn: process.env.SENTRY_DSN
-      }}
+      options: {client: core.error}
     })
-  } */
+  }
 
   await server.register({
     plugin: require('@hapi/inert')
