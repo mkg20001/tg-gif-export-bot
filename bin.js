@@ -67,6 +67,7 @@ const handleDocument = async (msg) => {
 
   const location = await core.fetch.tg(doc)
 
+  await msg.track('convert/document')
   await doConvert(location, msg.reply, {fileName: nameToGif(doc.file_name || 'animation.gif'), asReply: true})
 }
 const handleText = async (msg) => {
