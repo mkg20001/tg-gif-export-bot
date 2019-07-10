@@ -21,6 +21,7 @@
     "@hapi/inert": "^5.2.1",
     "hapi-pino": "^6.0.1",
     "hapi-sentry": "^2.0.1",
+    "puppeteer-lottie": "^1.0.4",
     "telebot": "^1.2.6",
     "teleutils": "github:mkg20001/teleutils",
     "urijs": "^1.19.1"
