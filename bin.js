@@ -12,6 +12,12 @@ const mainURL = process.argv[3]
 const hapi = require('@hapi/hapi')
 const boom = require('@hapi/boom')
 
+const emoji = require('emoji-dictionary')
+const prom = (f) => new Promise((resolve, reject) => f((err, res) => err ? reject(err) : resolve(res)))
+const renderLottie = require('puppeteer-lottie')
+const zlib = require('zlib')
+const fs = require('fs')
+
 const HELLO = `*This bot turns Telegram GIFs into real .gifs!*
 
 Just send me your GIFs and I'll convert them!
@@ -34,11 +40,14 @@ async function doConvert (input, reply, opt) {
 
   await core.exec('ffmpeg', ['-i', input.path, output.path])
 
+  await postConvert(input, output, reply, opt)
+}
+async function postConvert (input, output, reply, opt) {
   let {chat: {id: cid}, message_id: msgId, document: {file_id: id, file_name: fName}} = await reply.file(output.path, opt)
   if (fName.endsWith('_')) { fName = fName.replace(/_$/, '') }
   fName = encodeURI(fName)
 
-  bot.sendMessage(cid, `Here's the link to download the GIF: ${mainURL}/${id}/${fName}?dl=1
+  await bot.sendMessage(cid, `Here's the link to download the GIF: ${mainURL}/${id}/${fName}?dl=1
 
 And here's the preview: ${mainURL}/${id}/${fName}
 
@@ -48,6 +57,7 @@ Donate to keep this bot up! https://paypal.me/mkg20001`, {webPreview: false, rep
   input.cleanup()
   output.cleanup()
 }
+
 const nameToGif = (name) => {
   name = path.basename(name)
   const parsed = path.parse(name)
@@ -58,6 +68,53 @@ const nameToGif = (name) => {
 
 const beConfused = async (msg) => {
   return msg.reply.file(path.join(__dirname, 'confused.webp'), {fileName: 'confused.webp', asReply: true})
+}
+const handleSticker = async (msg) => {
+  const sticker = msg.sticker
+
+  const location = await core.fetch.tg(sticker)
+
+  if (sticker.is_animated) {
+    let buffer = await prom(cb => fs.readFile(location.path, cb))
+    if (buffer[0] !== 123) { // 123 is {, if not at begin then ungzip first
+      buffer = await prom(cb => zlib.gunzip(buffer, cb))
+    }
+    location.cleanup() // cleanup original file
+
+    // we have a JSON file now
+    const lottie = core.tmp('_sticker.json')
+    const generated = core.tmp('_generated.mp4')
+    fs.writeFileSync(lottie.path, buffer)
+    await renderLottie({
+      path: lottie.path,
+      output: generated.path
+    })
+
+    lottie.cleanup()
+    await msg.track('convert/animated_sticker')
+    await doConvert(generated, msg.reply, {fileName: nameToGif((msg.sticker.emoji ? emoji.getName(msg.sticker.emoji) + '_animated_sticker' : 'animated_sticker') + '.gif'), asReply: true})
+
+    /* requires gifski and looks horrible thanks to not having a background
+
+    const lottie = core.tmp('_sticker.json')
+    const generated = core.tmp('_generated.gif')
+    fs.writeFileSync(lottie.path, buffer)
+
+    await renderLottie({
+      path: lottie.path,
+      output: generated.path,
+      width: sticker.width,
+      height: sticker.height
+    })
+
+    await postConvert(lottie, generated, msg.reply, {fileName: nameToGif('animated_sticker.gif'), asReply: true}) */
+  } else {
+    await msg.reply.text('This sticker isn\'t animated. There\'s no point in converting it into a gif, but have your GIF anyways :P', {asReply: true})
+    const gif = core.tmp('_generated.gif')
+    await core.exec('convert', [location.path, gif.path])
+    await msg.track('convert/sticker')
+    await postConvert(location, gif, msg.reply, {fileName: nameToGif((msg.sticker.emoji ? emoji.getName(msg.sticker.emoji) + '_sticker' : 'sticker') + '.gif'), asReply: true})
+  }
 }
 const handleDocument = async (msg) => {
   const doc = msg.document
@@ -102,21 +159,20 @@ const handleText = async (msg) => {
 
 const {bot} = core
 
-bot.on('sticker', beConfused)
+bot.on('sticker', handleSticker)
 bot.on('document', handleDocument)
 bot.on('photo', beConfused)
 bot.on('text', handleText)
 bot.on('forward', (msg) => {
   switch (true) {
+    case Boolean(msg.sticker):
+      return handleSticker(msg)
     case Boolean(msg.document):
-      handleDocument(msg)
-      break
+      return handleDocument(msg)
     case Boolean(msg.text):
-      handleText(msg)
-      break
+      return handleText(msg)
     case Boolean(msg.photo):
-      beConfused(msg)
-      break
+      return beConfused(msg)
     default: {} // eslint-disable-line no-empty
   }
 })

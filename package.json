@@ -19,8 +19,10 @@
   "dependencies": {
     "@hapi/hapi": "^18.3.1",
     "@hapi/inert": "^5.2.1",
-    "hapi-pino": "^6.0.1",
-    "hapi-sentry": "^2.0.1",
+    "emoji-dictionary": "^1.0.10",
+    "hapi-pino": "^6.0.2",
+    "hapi-sentry": "^2.0.2",
+    "puppeteer-lottie": "^1.0.5",
     "telebot": "^1.2.6",
     "teleutils": "github:mkg20001/teleutils",
     "urijs": "^1.19.1"
