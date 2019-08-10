@@ -84,20 +84,6 @@ const handleSticker = async (msg) => {
 
     // we have a JSON file now
     const lottie = core.tmp('_sticker.json')
-    const generated = core.tmp('_generated.mp4')
-    fs.writeFileSync(lottie.path, buffer)
-    await renderLottie({
-      path: lottie.path,
-      output: generated.path
-    })
-
-    lottie.cleanup()
-    await msg.track('convert/animated_sticker')
-    await doConvert(generated, msg.reply, {fileName: nameToGif((msg.sticker.emoji ? emoji.getName(msg.sticker.emoji) + '_animated_sticker' : 'animated_sticker') + '.gif'), asReply: true})
-
-    /* requires gifski and looks horrible thanks to not having a background
-
-    const lottie = core.tmp('_sticker.json')
     const generated = core.tmp('_generated.gif')
     fs.writeFileSync(lottie.path, buffer)
 
@@ -105,10 +91,14 @@ const handleSticker = async (msg) => {
       path: lottie.path,
       output: generated.path,
       width: sticker.width,
-      height: sticker.height
+      height: sticker.height,
+      style: {
+        background: 'black'
+      }
     })
 
-    await postConvert(lottie, generated, msg.reply, {fileName: nameToGif('animated_sticker.gif'), asReply: true}) */
+    await msg.track('convert/animated_sticker')
+    await postConvert(lottie, generated, msg.reply, {fileName: nameToGif('animated_sticker.gif'), asReply: true})
   } else {
     await msg.reply.text('This sticker isn\'t animated. There\'s no point in converting it into a gif, but have your GIF anyways :P', {asReply: true})
     const gif = core.tmp('_generated.gif')
