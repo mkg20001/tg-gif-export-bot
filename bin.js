@@ -98,7 +98,7 @@ const handleSticker = async (msg) => {
     })
 
     await msg.track('convert/animated_sticker')
-    await postConvert(lottie, generated, msg.reply, {fileName: nameToGif('animated_sticker.gif'), asReply: true})
+    await postConvert(lottie, generated, msg.reply, {fileName: nameToGif((msg.sticker.emoji ? emoji.getName(msg.sticker.emoji) + '_animated_sticker' : 'animated_sticker') + '.gif'), asReply: true})
   } else {
     await msg.reply.text('This sticker isn\'t animated. There\'s no point in converting it into a gif, but have your GIF anyways :P', {asReply: true})
     const gif = core.tmp('_generated.gif')
