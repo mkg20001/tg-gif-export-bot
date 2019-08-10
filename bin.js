@@ -22,6 +22,7 @@ const HELLO = `*This bot turns Telegram GIFs into real .gifs!*
 
 Just send me your GIFs and I'll convert them!
  \\* Links to .mp4s get downloaded and converted as well
+ \\* Animated stickers are also supported
 
 Oh, and could you please...
  \\* Report bugs when you spot them: https://github.com/mkg20001/tg-sticker-convert-bot/issues
