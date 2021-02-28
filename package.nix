@@ -10,11 +10,15 @@
 , optipng
 , chromium
 , ffmpeg
+, imagemagick
+, gifski
 }:
 
 let
   extraPath = [
+    imagemagick
     ffmpeg
+    gifski
   ];
 in
 mkNode {
