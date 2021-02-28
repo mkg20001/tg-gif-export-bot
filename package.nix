@@ -9,8 +9,14 @@
 , pkg-config
 , optipng
 , chromium
+, ffmpeg
 }:
 
+let
+  extraPath = [
+    ffmpeg
+  ];
+in
 mkNode {
   root = drvSrc;
   nodejs = nodejs-14_x;
@@ -19,7 +25,7 @@ mkNode {
 } {
   buildInputs = [
     chromium
-  ];
+  ] ++ extraPath;
 
   nativeBuildInputs = [
     makeWrapper
@@ -31,8 +37,9 @@ mkNode {
 
   postInstall = ''
     for bin in $out/bin/*; do
-      wrapProgram $out/bin/mmdc \
-        --set PUPPETEER_EXECUTABLE_PATH ${chromium.outPath}/bin/chromium
+      wrapProgram $bin \
+        --set PUPPETEER_EXECUTABLE_PATH ${chromium.outPath}/bin/chromium \
+        --prefix PATH : ${lib.makeBinPath extraPath}
     done
   '';
 }
