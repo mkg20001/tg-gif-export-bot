@@ -39,7 +39,7 @@ mkNode {
     export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1
   '';
 
-  postInstall = ''
+  preFixup = ''
     for bin in $out/bin/*; do
       wrapProgram $bin \
         --set PUPPETEER_EXECUTABLE_PATH ${chromium.outPath}/bin/chromium \
