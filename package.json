@@ -28,11 +28,11 @@
   "author": "Maciej Krüger <mkg20001@gmail.com>",
   "license": "MPL-2.0",
   "dependencies": {
-    "@hapi/hapi": "^20.1.0",
+    "@hapi/hapi": "^20.1.2",
     "@hapi/inert": "^6.0.3",
     "emoji-dictionary": "^1.0.11",
     "hapi-pino": "^8.3.0",
-    "hapi-sentry": "^3.1.0",
+    "hapi-sentry": "^3.2.0",
     "puppeteer-lottie": "^1.1.2",
     "telebot": "^1.4.1",
     "teleutils": "^0.1.0",
@@ -43,7 +43,7 @@
     "eslint": "*",
     "eslint-config-ipfs": "*",
     "eslint-config-oclif": "*",
-    "mkgs-tool": "^0.1.14",
+    "mkgs-tool": "^0.1.15",
     "mocha": "*",
     "nyc": "*"
   },
